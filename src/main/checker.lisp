@@ -11,6 +11,7 @@
 ; * in-package must be first line in file unless file is package.lisp
 ; - No whitespace only lines
 ; - No empty lines at end of file
+; * Only one in-package per file
 ;
 ; Some thoughts
 ; - form starting reader macros will have to be hand added to this code
@@ -104,8 +105,9 @@
   (lambda ()
    (set-state :normal) nil))
  (defevaluator :begin ".*"
-  (lambda ()
-   "Must begin with in-package form"))
+  (constantly "Must begin with in-package form"))
+ (defevaluator :normal "\\( *in-package "
+  (constantly "Only one in-package per file"))
  (defevaluator :normal "\\n"
   (lambda ()
    (incf *line-no*)
@@ -121,9 +123,9 @@
   (lambda ()
    (let
     ((form (pop *form-stack*)))
-    (when
-     (< 50 (- *line-no* (car form)))
-     "Forms can't be over 50 lines long"))))
+    (cond
+     ((not form) "Unmatched ending paren")
+     ((< 50 (- *line-no* (car form))) "Forms can't be over 50 lines long")))))
 
  (defevaluator :normal "." (constantly nil))
  )
