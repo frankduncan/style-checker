@@ -2,7 +2,7 @@
 
 ; Rules
 ; - Elements in each form must be indented the same amount
-; - No form longer than 50 lines
+; * No form longer than 50 lines
 ; - Top level multiline forms must be separated by exactly one space
 ; * No line longer than 120 characters
 ; - No use of unexported symbols in other packages
@@ -25,11 +25,13 @@
 (defvar *line-no* nil)
 (defvar *col-no* nil)
 (defvar *evaluators* nil)
+(defvar *form-stack* nil)
 
-(defparameter *possible-states*
- '(:begin ; start of file
-   :normal ; normal processing
-  ))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+ (defparameter *possible-states*
+  '(:begin ; start of file
+    :normal ; normal processing
+   )))
 
 
 (defun set-state (state)
@@ -109,5 +111,19 @@
    (incf *line-no*)
    (setf *col-no* 0)
    nil))
+ (defevaluator :normal "\\("
+  (lambda ()
+   (push
+    (list *line-no* *col-no*)
+    *form-stack*)
+   nil))
+ (defevaluator :normal "\\)"
+  (lambda ()
+   (let
+    ((form (pop *form-stack*)))
+    (when
+     (< 50 (- *line-no* (car form)))
+     "Forms can't be over 50 lines long"))))
+
  (defevaluator :normal "." (constantly nil))
  )
