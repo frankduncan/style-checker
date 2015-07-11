@@ -4,11 +4,11 @@
 ; - Elements in each form must be indented the same amount
 ; - No form longer than 50 lines
 ; - Top level multiline forms must be separated by exactly one space
-; - No line longer than 120 characters
+; * No line longer than 120 characters
 ; - No use of unexported symbols in other packages
 ; - No tabs
 ; - Only one space between elements in a form on a single line
-; - in-package must be first line in file unless file is package.lisp
+; * in-package must be first line in file unless file is package.lisp
 ; - No whitespace only lines
 ; - No empty lines at end of file
 ;
@@ -26,15 +26,20 @@
 (defvar *col-no* nil)
 (defvar *evaluators* nil)
 
+(defparameter *possible-states*
+ '(:begin ; start of file
+   :normal ; normal processing
+  ))
+
+
 (defun set-state (state)
- (when (not (find state (list :begin ; start of file
-                              :normal
-                        )))
+ (when (not (find state *possible-states*))
   (error "Can't set state to ~A" state))
  (setf *state* state)
  nil)
 
 (defmacro defevaluator (state match func)
+ (when (not (find state *possible-states*)) (error "~A is an invalid state" state))
  (let
   ((scanner (gensym)))
  `(let
@@ -55,7 +60,11 @@
     *evaluators*))))
 
 (defun evaluate (text)
-; (if (string= "" text)
+ (if (string= "" text)
+     (let*
+      ((evaluator (find-if (lambda (f) (funcall f *state* :eof)) *evaluators* :from-end t :key #'car))
+       (problem (when evaluator (funcall (third evaluator)))))
+      (when problem (error (make-condition 'check-failure :msg problem :line-no *line-no* :col-no *col-no*))))
      (let
       ((evaluator (find-if (lambda (f) (funcall f *state* text)) *evaluators* :from-end t :key #'car)))
       (when (not evaluator) (error (make-condition 'check-failure :msg (format nil "Can't check in state ~S: ~S..." *state* (subseq text 0 (min (length text) 10))) :line-no *line-no* :col-no *col-no*)))
@@ -65,8 +74,8 @@
        (let
         ((length-of-match (funcall (cadr evaluator) text)))
         (incf *col-no* length-of-match)
-        (when (< 120 *col-no*) (error (make-condition 'check-failure :msg "Line longer than 120 characters" :line-no *line-no* :col-no *col-no*)))
-        (evaluate (subseq text length-of-match))))));)
+        (when (< 120 *col-no*) (error (make-condition 'check-failure :msg "Line longer than 120 characters" :line-no *line-no* :col-no 0)))
+        (evaluate (subseq text length-of-match)))))))
 
 (defun slurp-file (filename &key (element-type 'character) (sequence-type 'string))
  (with-open-file (str filename :element-type element-type)
@@ -76,15 +85,17 @@
  (set-state :begin)
  (setf *line-no* 0)
  (setf *col-no* 0)
+ (format t "~%File: ~A~%" file)
  (handler-case
   (progn (evaluate (slurp-file file)) t)
   (check-failure (cf)
-   (format t "In file ~A, Had an error: ~S at ~A:~A~%" (check-failure-msg cf) (check-failure-line-no cf) (check-failure-col-no cf))
+   (format t " - Had an error: ~S at ~A:~A~%" (check-failure-msg cf) (check-failure-line-no cf) (check-failure-col-no cf))
    nil)))
 
 (defun check-directory (dir)
  (every #'identity (mapcar #'check-file (directory (format nil "~A/**/*.lisp" dir)))))
 
+; These are in reverse order
 (progn
  (setf *evaluators* nil)
  (defevaluator :begin "\\(in-package[^\\)]*\\)"
@@ -92,4 +103,11 @@
    (set-state :normal) nil))
  (defevaluator :begin ".*"
   (lambda ()
-   "Must begin with in-package form")))
+   "Must begin with in-package form"))
+ (defevaluator :normal "\\n"
+  (lambda ()
+   (incf *line-no*)
+   (setf *col-no* 0)
+   nil))
+ (defevaluator :normal "." (constantly nil))
+ )
