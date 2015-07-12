@@ -18,7 +18,7 @@
 ; * No hanging close parens
 ;
 ; Exceptions
-; - comments
+; * comments
 ; - multiline strings
 
 ; Some thoughts
@@ -45,6 +45,8 @@
     :beginning-of-line-with-separator ; empty space in there
     :beginning-of-symbols
     :beginning-of-symbols-with-separator
+    :comment-with-separator ; weird edge case for pre-function comments
+    :beginning-of-line-with-comment-and-separator ; weird edge case part 2
     :first-symbol ; first symbol of form/line
     :all ; matches everything
    )))
@@ -118,6 +120,12 @@
 ; These are in reverse order
 (progn
  (setf *evaluators* nil)
+ (defevaluator :beginning-of-symbols " *;[^\\n]*"
+  (lambda () (set-state :normal)))
+ (defevaluator :beginning-of-symbols-with-separator " *;[^\\n]*"
+  (lambda () (set-state :comment-with-separator)))
+ (defevaluator :normal " *;[^\\n]*"
+  (lambda () (set-state :normal)))
  (defevaluator :normal "\\("
   (lambda ()
    (push (list *line-no* *col-no*) *form-stack*)
@@ -142,9 +150,22 @@
    (incf *line-no*)
    (setf *col-no* -1)
    (set-state :beginning-of-line)))
+ (defevaluator :comment-with-separator "\\n"
+  (lambda ()
+   (incf *line-no*)
+   (setf *col-no* -1)
+   (set-state :beginning-of-line-with-comment-and-separator)
+   nil))
  (defevaluator :normal " +\\n" (constantly "No whitespace at end of line"))
  (defevaluator :beginning-of-line " *" (lambda () (set-state :beginning-of-symbols)))
  (defevaluator :beginning-of-line-with-separator " *" (lambda () (set-state :beginning-of-symbols-with-separator)))
+ (defevaluator :beginning-of-line-with-comment-and-separator "\\n"
+  (lambda ()
+   (progn
+    (incf *line-no*)
+    (setf *col-no* -1)
+    (set-state :beginning-of-line-with-separator))))
+ (defevaluator :beginning-of-line-with-comment-and-separator " *" (lambda () (set-state :beginning-of-symbols-with-separator)))
  (defevaluator :beginning-of-symbols "\\n"
   (lambda ()
    (if
