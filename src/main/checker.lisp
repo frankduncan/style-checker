@@ -1,7 +1,8 @@
 (in-package #:style-checker)
 
 ; Rules
-; - Elements in each form must be indented the same amount
+; - Elements on new line in each form must be indented the same amount
+; * No space/newline after open parens
 ; * No form longer than 50 lines
 ; * Top level multiline forms must be separated by exactly one space
 ; * No line longer than 120 characters
@@ -40,6 +41,7 @@
     :beginning-of-line-with-separator ; empty space in there
     :beginning-of-symbols
     :beginning-of-symbols-with-separator
+    :first-symbol-of-form ; After an open parens
     :all ; matches everything
    )))
 
@@ -112,40 +114,29 @@
 ; These are in reverse order
 (progn
  (setf *evaluators* nil)
- (defevaluator :all "\\t"
-  (constantly "Must not use tabs"))
- (defevaluator :begin "\\(in-package[^\\)]*\\)"
-  (lambda () (set-state :normal)))
- (defevaluator :beginning-of-line-with-separator :eof
-  (constantly "Must not end with empty line"))
- (defevaluator :beginning-of-line-with-separator "\\n"
-  (constantly "Must not have two empty lines in a row"))
- (defevaluator :begin ".*"
-  (constantly "Must begin with in-package form"))
- (defevaluator :normal "\\( *in-package "
-  (constantly "Only one in-package per file"))
+ (defevaluator :all "\\t" (constantly "Must not use tabs"))
+ (defevaluator :begin "\\(in-package[^\\)]*\\)" (lambda () (set-state :normal)))
+ (defevaluator :beginning-of-line-with-separator :eof (constantly "Must not end with empty line"))
+ (defevaluator :beginning-of-line-with-separator "\\n" (constantly "Must not have two empty lines in a row"))
+ (defevaluator :begin ".*" (constantly "Must begin with in-package form"))
+ (defevaluator :normal "\\( *in-package " (constantly "Only one in-package per file"))
  (defevaluator :normal "\\n"
   (lambda ()
    (set-state :beginning-of-line)
    (incf *line-no*)
    (setf *col-no* -1)
    nil))
- (defevaluator :normal " +\\n"
-  (constantly "No whitespace at end of line"))
- (defevaluator :beginning-of-line " *"
-  (lambda () (set-state :beginning-of-symbols)))
- (defevaluator :beginning-of-line-with-separator " *"
-  (lambda () (set-state :beginning-of-symbols-with-separator)))
+ (defevaluator :normal " +\\n" (constantly "No whitespace at end of line"))
+ (defevaluator :beginning-of-line " *" (lambda () (set-state :beginning-of-symbols)))
+ (defevaluator :beginning-of-line-with-separator " *" (lambda () (set-state :beginning-of-symbols-with-separator)))
  (defevaluator :beginning-of-symbols "\\n"
   (lambda ()
    (if
     (< 0 *col-no*)
     "No whitespace only lines"
     (set-state :beginning-of-line-with-separator))))
- (defevaluator :beginning-of-symbols "\\)"
-  (constantly "No hanging close parens"))
- (defevaluator :beginning-of-symbols-with-separator "\\)"
-  (constantly "No hanging close parens"))
+ (defevaluator :beginning-of-symbols "\\)" (constantly "No hanging close parens"))
+ (defevaluator :beginning-of-symbols-with-separator "\\)" (constantly "No hanging close parens"))
  (defevaluator :beginning-of-symbols ""
   (lambda ()
    (if
@@ -160,7 +151,7 @@
    (push
     (list *line-no* *col-no*)
     *form-stack*)
-   nil))
+   (set-state :first-symbol-of-form)))
  (defevaluator :normal "\\)"
   (lambda ()
    (let
@@ -169,6 +160,8 @@
      ((not form) "Unmatched ending paren")
      ((< 50 (- *line-no* (car form))) "Forms can't be over 50 lines long")
      (t (setf *form-ended-on-same-line* (= *line-no* (car form))) nil)))))
- (defevaluator :normal "::"
-  (constantly "No internal symbols from other packages"))
+ (defevaluator :normal "::" (constantly "No internal symbols from other packages"))
+ (defevaluator :first-symbol-of-form "\\n" (constantly "No new line after opening form"))
+ (defevaluator :first-symbol-of-form " " (constantly "No space after opening parens"))
+ (defevaluator :first-symbol-of-form "" (lambda () (set-state :normal)))
  (defevaluator :normal "." (constantly nil)))

@@ -9,6 +9,7 @@
    ((x y)
     (z 9))
    (with-open-file (str "increasinglylongfilenamesfailme.dat" :direction :input :if-does-not-exist :create)
-    (when
+    (
+     when
      (read-line str)
      (format t "This file had some things in int, yay!~%")))))
