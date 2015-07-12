@@ -9,7 +9,8 @@
 ; - No tabs
 ; - Only one space between elements in a form on a single line
 ; * in-package must be first line in file unless file is package.lisp
-; - No whitespace only lines
+; * No whitespace at end of line
+; * No lines that are only whitespace
 ; - No empty lines at end of file
 ; * Only one in-package per file
 ;
@@ -32,6 +33,8 @@
  (defparameter *possible-states*
   '(:begin ; start of file
     :normal ; normal processing
+    :beginning-of-line
+    :beginning-of-symbols
    )))
 
 
@@ -57,7 +60,7 @@
         (and ,scanner
              (stringp text)
              (multiple-value-bind (start end) (cl-ppcre:scan ,scanner text)
-              (and start end (= 0 start) (/= 0 end)))))))
+              (and start end (= 0 start)))))))
      (lambda (text) (second (multiple-value-list (cl-ppcre:scan ,scanner text))))
      ,func)
     *evaluators*))))
@@ -110,8 +113,22 @@
   (constantly "Only one in-package per file"))
  (defevaluator :normal "\\n"
   (lambda ()
+   (set-state :beginning-of-line)
    (incf *line-no*)
-   (setf *col-no* 0)
+   (setf *col-no* -1)
+   nil))
+ (defevaluator :normal " +\\n"
+  (lambda ()
+   "No whitespace at end of line"))
+ (defevaluator :beginning-of-line " *"
+  (lambda ()
+   (set-state :beginning-of-symbols)
+   nil))
+ (defevaluator :beginning-of-symbols "\\n"
+  (lambda () (when (< 0 *col-no*) "No whitespace only lines")))
+ (defevaluator :beginning-of-symbols ""
+  (lambda ()
+   (set-state :normal)
    nil))
  (defevaluator :normal "\\("
   (lambda ()
@@ -126,6 +143,9 @@
     (cond
      ((not form) "Unmatched ending paren")
      ((< 50 (- *line-no* (car form))) "Forms can't be over 50 lines long")))))
+
+(cl-ppcre:scan (cl-ppcre:create-scanner " *") "
+asdf asdf")
 
  (defevaluator :normal "." (constantly nil))
  )
