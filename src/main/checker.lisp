@@ -1,7 +1,7 @@
 (in-package #:style-checker)
 
 ; Rules
-; - Elements on new line in each form must be indented the same amount
+; * Elements on new line in each form must be indented the same amount
 ; * No space/newline after open parens
 ; * No form longer than 50 lines
 ; * Top level multiline forms must be separated by exactly one space
@@ -17,6 +17,10 @@
 ; * Only one in-package per file
 ; * No hanging close parens
 ;
+; Exceptions
+; - comments
+; - multiline strings
+
 ; Some thoughts
 ; - form starting reader macros will have to be hand added to this code
 ; - exceptions will eventually arise, and the rule file will have to be changed
@@ -41,7 +45,7 @@
     :beginning-of-line-with-separator ; empty space in there
     :beginning-of-symbols
     :beginning-of-symbols-with-separator
-    :first-symbol-of-form ; After an open parens
+    :first-symbol ; first symbol of form/line
     :all ; matches everything
    )))
 
@@ -84,7 +88,8 @@
       (when (not evaluator) (error (make-condition 'check-failure :msg (format nil "Can't check in state ~S: ~S..." *state* (subseq text 0 (min (length text) 10))) :line-no *line-no* :col-no *col-no*)))
       (let
        ((problem (funcall (third evaluator))))
-       (when problem (error (make-condition 'check-failure :msg problem :line-no *line-no* :col-no *col-no*)))
+       (when problem
+        (error (make-condition 'check-failure :msg problem :line-no *line-no* :col-no *col-no*)))
        (let
         ((length-of-match (funcall (cadr evaluator) text)))
         (incf *col-no* length-of-match)
@@ -114,18 +119,30 @@
 ; These are in reverse order
 (progn
  (setf *evaluators* nil)
+ (defevaluator :normal "\\("
+  (lambda ()
+   (push (list *line-no* *col-no*) *form-stack*)
+   (set-state :first-symbol)))
+ (defevaluator :first-symbol "\\("
+  (lambda ()
+   (cond
+    ((and (not *form-stack*) (not (zerop *col-no*))) "Top level forms must begin on first column")
+    ((and *form-stack* (/= (1+ (cadr (car *form-stack*))) *col-no*))
+     "All form elements must be indented equally")
+    (t
+     (push (list *line-no* *col-no*) *form-stack*)
+     (set-state :first-symbol)))))
  (defevaluator :all "\\t" (constantly "Must not use tabs"))
  (defevaluator :begin "\\(in-package[^\\)]*\\)" (lambda () (set-state :normal)))
  (defevaluator :beginning-of-line-with-separator :eof (constantly "Must not end with empty line"))
  (defevaluator :beginning-of-line-with-separator "\\n" (constantly "Must not have two empty lines in a row"))
  (defevaluator :begin ".*" (constantly "Must begin with in-package form"))
- (defevaluator :normal "\\( *in-package " (constantly "Only one in-package per file"))
+ (defevaluator :all "\\( *in-package " (constantly "Only one in-package per file"))
  (defevaluator :normal "\\n"
   (lambda ()
-   (set-state :beginning-of-line)
    (incf *line-no*)
    (setf *col-no* -1)
-   nil))
+   (set-state :beginning-of-line)))
  (defevaluator :normal " +\\n" (constantly "No whitespace at end of line"))
  (defevaluator :beginning-of-line " *" (lambda () (set-state :beginning-of-symbols)))
  (defevaluator :beginning-of-line-with-separator " *" (lambda () (set-state :beginning-of-symbols-with-separator)))
@@ -134,7 +151,10 @@
    (if
     (< 0 *col-no*)
     "No whitespace only lines"
-    (set-state :beginning-of-line-with-separator))))
+    (progn
+     (incf *line-no*)
+     (setf *col-no* -1)
+     (set-state :beginning-of-line-with-separator)))))
  (defevaluator :beginning-of-symbols "\\)" (constantly "No hanging close parens"))
  (defevaluator :beginning-of-symbols-with-separator "\\)" (constantly "No hanging close parens"))
  (defevaluator :beginning-of-symbols ""
@@ -142,16 +162,10 @@
    (if
     (and (not *form-stack*) (not *form-ended-on-same-line*))
     "Multiline top level forms must be separated by a space"
-    (set-state :normal))))
+    (set-state :first-symbol))))
  (defevaluator :beginning-of-symbols-with-separator ""
   (lambda ()
-   (set-state :normal)))
- (defevaluator :normal "\\("
-  (lambda ()
-   (push
-    (list *line-no* *col-no*)
-    *form-stack*)
-   (set-state :first-symbol-of-form)))
+   (set-state :first-symbol)))
  (defevaluator :normal "\\)"
   (lambda ()
    (let
@@ -161,7 +175,13 @@
      ((< 50 (- *line-no* (car form))) "Forms can't be over 50 lines long")
      (t (setf *form-ended-on-same-line* (= *line-no* (car form))) nil)))))
  (defevaluator :normal "::" (constantly "No internal symbols from other packages"))
- (defevaluator :first-symbol-of-form "\\n" (constantly "No new line after opening form"))
- (defevaluator :first-symbol-of-form " " (constantly "No space after opening parens"))
- (defevaluator :first-symbol-of-form "" (lambda () (set-state :normal)))
+ (defevaluator :first-symbol "\\n" (constantly "No new line after opening form"))
+ (defevaluator :first-symbol " " (constantly "No space after opening parens"))
+ (defevaluator :first-symbol ""
+  (lambda ()
+   ;(format t "HMMM: ~A ~A ~A~%" *form-stack* *line-no* *col-no*)
+   (cond
+    ((and *form-stack* (/= (1+ (cadr (car *form-stack*))) *col-no*))
+     "All form elements must be indented equally")
+    (t (set-state :normal)))))
  (defevaluator :normal "." (constantly nil)))
