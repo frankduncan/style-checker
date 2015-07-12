@@ -6,7 +6,7 @@
 ; - Top level multiline forms must be separated by exactly one space
 ; * No line longer than 120 characters
 ; - No use of unexported symbols in other packages
-; - No tabs
+; * No tabs
 ; - Only one space between elements in a form on a single line
 ; * in-package must be first line in file unless file is package.lisp
 ; * No whitespace at end of line
@@ -35,6 +35,7 @@
     :normal ; normal processing
     :beginning-of-line
     :beginning-of-symbols
+    :all ; matches everything
    )))
 
 
@@ -54,7 +55,7 @@
     (list
      (lambda (state text)
       (and
-       (eql ,state state)
+       (or (eql :all ,state) (eql ,state state))
        (or
         (and (symbolp text) (eql text ,match))
         (and ,scanner
@@ -104,6 +105,8 @@
 ; These are in reverse order
 (progn
  (setf *evaluators* nil)
+ (defevaluator :all "\\t"
+  (constantly "Must not use tabs"))
  (defevaluator :begin "\\(in-package[^\\)]*\\)"
   (lambda ()
    (set-state :normal) nil))
