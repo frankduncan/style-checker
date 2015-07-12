@@ -1,7 +1,9 @@
 (in-package #:nothing)
 
-(defun small-guy (a b) (+ a b))
-(defun small-guy-2 (a b) (+ a b))
+(defun small-guy (a b)
+ (+ a b))
+(defun small-guy-2 (a b)
+ (+ a b))
 
 (defun hello-world (a b c)
  (progn
