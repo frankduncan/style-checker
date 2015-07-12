@@ -14,7 +14,7 @@
 ; * No empty lines at end of file
 ; * Never have two empty lines in a row
 ; * Only one in-package per file
-; - No hanging close parens
+; * No hanging close parens
 ;
 ; Some thoughts
 ; - form starting reader macros will have to be hand added to this code
@@ -142,6 +142,10 @@
     (< 0 *col-no*)
     "No whitespace only lines"
     (set-state :beginning-of-line-with-separator))))
+ (defevaluator :beginning-of-symbols "\\)"
+  (constantly "No hanging close parens"))
+ (defevaluator :beginning-of-symbols-with-separator "\\)"
+  (constantly "No hanging close parens"))
  (defevaluator :beginning-of-symbols ""
   (lambda ()
    (if
