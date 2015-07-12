@@ -19,7 +19,7 @@
 ;
 ; Exceptions
 ; * comments
-; - multiline strings
+; * multiline strings
 
 ; Some thoughts
 ; - form starting reader macros will have to be hand added to this code
@@ -49,6 +49,7 @@
     :beginning-of-line-with-comment-and-separator ; weird edge case part 2
     :first-symbol ; first symbol of form/line
     :all ; matches everything
+    :in-string
    )))
 
 (defun set-state (state)
@@ -195,6 +196,15 @@
      ((< 50 (- *line-no* (car form))) "Forms can't be over 50 lines long")
      (t (setf *form-ended-on-same-line* (= *line-no* (car form))) nil)))))
  (defevaluator :normal "::" (constantly "No internal symbols from other packages"))
+ (defevaluator :in-string "\\\\\"" (constantly nil))
+ (defevaluator :normal "\"" (lambda () (set-state :in-string)))
+ (defevaluator :in-string "\"" (lambda () (set-state :normal)))
+ (defevaluator :in-string "\\n"
+  (lambda ()
+   (incf *line-no*)
+   (setf *col-no* -1)
+   nil))
+ (defevaluator :in-string "." (constantly nil))
  (defevaluator :first-symbol "\\n" (constantly "No new line after opening form"))
  (defevaluator :first-symbol " " (constantly "No space after opening parens"))
  (defevaluator :first-symbol ""
