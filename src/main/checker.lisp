@@ -8,7 +8,7 @@
 ; * No line longer than 120 characters
 ; * No use of unexported symbols in other packages
 ; * No tabs
-; - Only one space between elements in a form on a single line
+; * Only one space between elements in a form on a single line
 ; * in-package must be first line in file unless file is package.lisp
 ; * No whitespace at end of line
 ; * No lines that are only whitespace
@@ -48,7 +48,6 @@
     :first-symbol ; first symbol of form/line
     :all ; matches everything
    )))
-
 
 (defun set-state (state)
  (when (not (find state *possible-states*))
@@ -184,4 +183,5 @@
     ((and *form-stack* (/= (1+ (cadr (car *form-stack*))) *col-no*))
      "All form elements must be indented equally")
     (t (set-state :normal)))))
+ (defevaluator :normal "  " (constantly "Only one space between items of a form"))
  (defevaluator :normal "." (constantly nil)))
