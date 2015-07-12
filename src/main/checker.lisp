@@ -5,7 +5,7 @@
 ; * No form longer than 50 lines
 ; - Top level multiline forms must be separated by exactly one space
 ; * No line longer than 120 characters
-; - No use of unexported symbols in other packages
+; * No use of unexported symbols in other packages
 ; * No tabs
 ; - Only one space between elements in a form on a single line
 ; * in-package must be first line in file unless file is package.lisp
@@ -160,9 +160,8 @@
     (cond
      ((not form) "Unmatched ending paren")
      ((< 50 (- *line-no* (car form))) "Forms can't be over 50 lines long")))))
-
-(cl-ppcre:scan (cl-ppcre:create-scanner " *") "
-asdf asdf")
+ (defevaluator :normal "::"
+  (constantly "No internal symbols from other packages"))
 
  (defevaluator :normal "." (constantly nil))
  )
