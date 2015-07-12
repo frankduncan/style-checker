@@ -11,7 +11,8 @@
 ; * in-package must be first line in file unless file is package.lisp
 ; * No whitespace at end of line
 ; * No lines that are only whitespace
-; - No empty lines at end of file
+; * No empty lines at end of file
+; * Never have two empty lines in a row
 ; * Only one in-package per file
 ;
 ; Some thoughts
@@ -34,6 +35,7 @@
   '(:begin ; start of file
     :normal ; normal processing
     :beginning-of-line
+    :beginning-of-separators-with-space ; empty space in there
     :beginning-of-symbols
     :all ; matches everything
    )))
@@ -110,6 +112,10 @@
  (defevaluator :begin "\\(in-package[^\\)]*\\)"
   (lambda ()
    (set-state :normal) nil))
+ (defevaluator :beginning-of-separators-with-space :eof
+  (constantly "Must not end with empty line"))
+ (defevaluator :beginning-of-separators-with-space "\\n"
+  (constantly "Must not have two empty lines in a row"))
  (defevaluator :begin ".*"
   (constantly "Must begin with in-package form"))
  (defevaluator :normal "\\( *in-package "
@@ -127,8 +133,16 @@
   (lambda ()
    (set-state :beginning-of-symbols)
    nil))
+ (defevaluator :beginning-of-separators-with-space " *"
+  (lambda ()
+   (set-state :beginning-of-symbols)
+   nil))
  (defevaluator :beginning-of-symbols "\\n"
-  (lambda () (when (< 0 *col-no*) "No whitespace only lines")))
+  (lambda ()
+   (if
+    (< 0 *col-no*)
+    "No whitespace only lines"
+    (set-state :beginning-of-separators-with-space))))
  (defevaluator :beginning-of-symbols ""
   (lambda ()
    (set-state :normal)
