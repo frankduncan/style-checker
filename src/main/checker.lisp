@@ -108,15 +108,35 @@
  (setf *col-no* 0)
  (setf *form-stack* nil)
  (setf *form-ended-on-same-line* nil)
- (format t "~%File: ~A~%" file)
  (handler-case
-  (progn (evaluate (slurp-file file)) t)
+  (progn
+   (evaluate (slurp-file file))
+   (list :success file))
   (check-failure (cf)
-   (format t " - Had an error: ~S at ~A:~A~%" (check-failure-msg cf) (check-failure-line-no cf) (check-failure-col-no cf))
-   nil)))
+   (list :failure file (check-failure-msg cf) (check-failure-line-no cf) (check-failure-col-no cf)))))
 
 (defun check-directory (dir)
- (every #'identity (mapcar #'check-file (directory (format nil "~A/**/*.lisp" dir)))))
+ (mapcar #'check-file (directory (format nil "~A/**/*.lisp" dir))))
+
+(defun any-failures (checks)
+ (find :failure checks :key #'car))
+
+(defun print-failure (failure)
+ (format nil
+  "Style error in ~A at ~A:~A: ~A~%- ~A~%~VT^"
+  (second failure)
+  (1+ (fourth failure))
+  (1+ (fifth failure))
+  (third failure)
+  (with-open-file (str (second failure)) (loop :repeat (fourth failure) :do (read-line str)) (read-line str))
+  (+ (fifth failure) 2)))
+
+(defun pretty-print-check-directory (dir)
+ (let
+  ((checks (check-directory dir)))
+  (format t "In ~A: Checked ~A files with ~A failures~%~%" dir (length checks) (length (remove :success checks :key #'car)))
+  (format t "~{~A~%~}" (mapcar #'print-failure (remove :success checks :key #'car)))
+  (sb-ext:exit :code (if (any-failures checks) 1 0))))
 
 ; These are in reverse order
 (progn
@@ -142,7 +162,10 @@
      (set-state :first-symbol)))))
  (defevaluator :all "\\t" (constantly "Must not use tabs"))
  (defevaluator :begin "\\(in-package[^\\)]*\\)" (lambda () (set-state :normal)))
- (defevaluator :beginning-of-line-with-separator :eof (constantly "Must not end with empty line"))
+ (defevaluator :beginning-of-line-with-separator :eof
+  (lambda ()
+   (incf *line-no* -1)
+   "Must not end with empty line"))
  (defevaluator :beginning-of-line-with-separator "\\n" (constantly "Must not have two empty lines in a row"))
  (defevaluator :begin ".*" (constantly "Must begin with in-package form"))
  (defevaluator :all "\\( *in-package " (constantly "Only one in-package per file"))
@@ -209,7 +232,6 @@
  (defevaluator :first-symbol " " (constantly "No space after opening parens"))
  (defevaluator :first-symbol ""
   (lambda ()
-   ;(format t "HMMM: ~A ~A ~A~%" *form-stack* *line-no* *col-no*)
    (cond
     ((and *form-stack* (/= (1+ (cadr (car *form-stack*))) *col-no*))
      "All form elements must be indented equally")
