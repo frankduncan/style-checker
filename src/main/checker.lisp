@@ -20,6 +20,7 @@
 ; Exceptions
 ; * comments
 ; * multiline strings
+; * exclude in-package check from package.lisp
 
 ; Some thoughts
 ; - form starting reader macros will have to be hand added to this code
@@ -103,7 +104,9 @@
   (let ((seq (make-sequence sequence-type (file-length str)))) (read-sequence seq str) seq)))
 
 (defun check-file (file)
- (set-state :begin)
+ (if (string= "package" (pathname-name file))
+  (set-state :normal)
+  (set-state :begin))
  (setf *line-no* 0)
  (setf *col-no* 0)
  (setf *form-stack* nil)
