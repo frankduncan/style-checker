@@ -87,6 +87,30 @@
   (let ((seq (make-sequence sequence-type (file-length str)))) (read-sequence seq str) seq)))
 
 (defun check-file (file)
+ "CHECK-FILE FILE => RESULT
+
+  RESULT: SUCCESS-RESULT | FAILURE-RESULT
+  SUCCESS-RESULT: (:success FILENAME)
+  FAILURE-RESULT: (:success FILENAME MSG LINE-NO COL-NO)
+
+ARGUMENTS AND VALUES
+
+  FILE: a pathname
+  FILENAME: the file this check was run on
+  MSG: a string containing the failure message
+  LINE-NO: an integer, the line number on which the failure appeared
+  COL-NO: an integer, the column number on which the failure appeared
+
+DESCRIPTION:
+
+  CHECK-FILE runs all the checks against a file and returns
+  as soon as the first style error is found.
+
+EXAMPLES:
+
+  (check-file #P\"path/to/file.lisp\") => (:success \"path/to/file.lisp\")
+  (check-file #P\"path/to/error.lisp\") => (:failure \"path/to/error.lisp\" \"File cannot end with empty line\" 20 0)"
+
  (if (string= "package" (pathname-name file))
   (set-state :normal)
   (set-state :begin))

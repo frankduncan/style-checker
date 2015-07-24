@@ -1,0 +1,6 @@
+before_install:
+  - wget http://frank.kank.net/travissbcl/style-checker/ef9a5c7/$(git rev-parse HEAD)/travissbcl
+  - chmod +x travissbcl
+
+script:
+  - ./travissbcl --script bin/travis.lisp
