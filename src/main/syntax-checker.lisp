@@ -93,7 +93,7 @@
   SUCCESS-RESULT: (:success FILENAME)
   FAILURE-RESULT: (:success FILENAME MSG LINE-NO COL-NO)
 
-ARGUMENTS AND VALUES
+ARGUMENTS AND VALUES:
 
   FILE: a pathname
   FILENAME: the file this check was run on
@@ -126,6 +126,23 @@ EXAMPLES:
    (list :failure file (check-failure-msg cf) (check-failure-line-no cf) (check-failure-col-no cf)))))
 
 (defun check-directory (dir)
+ "CHECK-DIRECTORY DIR => RESULTS
+
+  RESULTS: RESULT*
+
+ARGUMENTS AND VALUES:
+
+  DIR: A directory to recurse into and check files
+  RESULT: A result as returned by check-file
+
+DESCRIPTION:
+
+  CHECK-DIRECTORY grabs all .lisp files in the tree under DIR, and loads
+  checks them all.
+
+  The results are then put together into a list which can be programatically
+  evaluated.  As opposed to pretty-print-check-directory, this function doesn't
+  clutter up your standard out."
  (mapcar #'check-file (directory (format nil "~A/**/*.lisp" dir))))
 
 (defun any-failures (checks)
@@ -142,6 +159,24 @@ EXAMPLES:
   (+ (fifth failure) 2)))
 
 (defun pretty-print-check-directory (dir)
+ "PRETTY-PRINT-CHECK-DIRECTORY DIR => SUCCESS
+
+ARGUMENTS AND VALUES:
+
+  DIR: A directory to recurse into and check files
+  SUCCESS: T if there were no failures
+
+DESCRIPTION:
+
+  PRETTY-PRINT-CHECK-DIRECTORY checks DIR for any errors, dumping them to output
+  and returning a single flag.
+
+  Unlike check-directory, PRETTY-PRINT-CHECK-DIRECTORY is built for continuous
+  integration, dumping errors to standard out and returning a singular result.
+
+EXAMPLES:
+
+  (pretty-print-check-directory \"src\") => nil"
  (let
   ((checks (check-directory dir)))
   (format t "In ~A: Checked ~A files with ~A failures~%~%"

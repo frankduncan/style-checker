@@ -12,7 +12,9 @@ mkdir -p tmp/deps/
 
 ( cd tmp/deps &&
   tar zxf ../../deps/tarpit/cl-ppcre.tar.gz &&
-  ln -s cl-ppcre-2.0.10/cl-ppcre.asd .
+  tar zxf ../../deps/tarpit/docgen_0.1.tar.gz &&
+  ln -s cl-ppcre-2.0.10/cl-ppcre.asd . &&
+  ln -s docgen_0.1/docgen.asd .
 )
 
 
@@ -20,6 +22,7 @@ SBCL_HOME="" tmp/sbcl/bin/sbcl --core tmp/sbcl/lib/sbcl/sbcl.core --no-sysinit -
   --eval "(require 'asdf)" \
   --eval '(setf asdf:*central-registry* (list #p"tmp/deps/"))' \
   --eval "(asdf:load-system :cl-ppcre)" \
+  --eval "(asdf:load-system :docgen)" \
   --eval "(asdf:clear-output-translations)" \
   --eval '(sb-ext:save-lisp-and-die "travissbcl" :executable t)' \
 

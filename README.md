@@ -27,10 +27,6 @@ If you like, you can [download it](https://github.com/frankduncan/style-checker/
 
 ## Usage
 
-```
-(check-file file)
+See the [wiki](https://github.com/frankduncan/style-checker/wiki).
 
-(check-directory dir)
-
-(check-directory pretty-print-check-directory)
-```
+Also, see bin/travis.lisp to see how it's used in this package.
