@@ -1,8 +1,9 @@
 (setf *compile-print* nil)
 (require 'asdf)
-(setf asdf:*central-registry* (list #p"deps/"))
-(asdf:load-system :style-checker.internal)
-(asdf:load-system :style-checker-test.internal)
+(asdf:initialize-source-registry `(:source-registry (:tree ,(car (directory "src"))) :INHERIT-CONFIGURATION))
+(asdf:load-system :style-checker)
+(asdf:load-system :style-checker-test)
+#-travis (asdf:load-system :docgen)
 
 (format t "~%~c[1;33mRunning Tests~c[0m~%" #\Esc #\Esc)
 (when (not (style-checker-test:run-all-tests))

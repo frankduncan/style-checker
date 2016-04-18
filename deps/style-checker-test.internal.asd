@@ -1,1 +1,0 @@
-../src/test/style-checker-test.asd
